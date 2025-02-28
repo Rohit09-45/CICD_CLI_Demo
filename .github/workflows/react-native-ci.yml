@@ -45,3 +45,43 @@ jobs:
         with:
           name: android-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+
+  
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install  
+      
+      - name: Setup Ruby for CocoaPods
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0
+          
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build iOS App
+        run: |
+          xcodebuild -workspace ios/MyApp.xcworkspace \
+          -scheme MyApp \
+          -sdk iphoneos \
+          -configuration Release \
+          -derivedDataPath ios/build
+
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: ios/build/Build/Products/Release-iphoneos/*.app

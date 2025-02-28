@@ -15,17 +15,17 @@ function App(): React.JSX.Element {
         <Stack.Screen 
           name="Home" 
           component={HomeScreen} 
-          options={{title: 'Task Manager'}}
+          options={{title: 'Task Manager', headerShown:false}}
         />
         <Stack.Screen 
           name="Details" 
           component={DetailsScreen} 
-          options={{title: 'Task Details'}}
+          options={{title: 'Task Details', headerShown:false}}
         />
         <Stack.Screen 
           name="Profile" 
           component={ProfileScreen} 
-          options={{title: 'My Profile'}}
+          options={{title: 'My Profile', headerShown:false}}
         />
       </Stack.Navigator>
     </NavigationContainer>
