@@ -111,20 +111,34 @@ jobs:
 
       - name: Build iOS Archive
         run: |
-          xcodebuild -workspace ios/MyApp.xcworkspace \
+          xcodebuild -workspace ios/CICD_CLI_Demo.xcworkspace \
           -scheme MyApp \
           -sdk iphoneos \
           -configuration Release \
-          -archivePath ios/build/MyApp.xcarchive \
+          -archivePath ios/build/CICD_CLI_Demo.xcarchive \
           archive
+
+      - name: Check exportOptions.plist
+        run: |
+          if [ ! -f ios/exportOptions.plist ]; then
+            echo "exportOptions.plist not found!"
+            exit 1
+          fi
 
       - name: Export .ipa
         run: |
           xcodebuild -exportArchive \
-          -archivePath ios/build/MyApp.xcarchive \
+          -archivePath ios/build/CICD_CLI_Demo.xcarchive \
           -exportOptionsPlist ios/exportOptions.plist \
-          -exportPath ios/build
-
+          -exportPath ios/build    
+      
+      - name: Verify .ipa Exists
+        run: |
+          if [ ! -f ios/build/MyApp.ipa ]; then
+            echo "iOS IPA file is missing!"
+            exit 1
+          fi
+          
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
