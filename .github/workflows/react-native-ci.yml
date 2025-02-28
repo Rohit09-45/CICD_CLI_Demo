@@ -108,7 +108,7 @@ jobs:
 
       - name: Verify exportOptions.plist exists
         run: ls -la ios/exportOptions.plist
-
+      
       - name: Build iOS Archive
         run: |
           xcodebuild -workspace ios/CICD_CLI_Demo.xcworkspace \
@@ -116,7 +116,16 @@ jobs:
           -sdk iphoneos \
           -configuration Release \
           -archivePath ios/build/CICD_CLI_Demo.xcarchive \
-          archive
+          archive CODE_SIGNING_ALLOWED=YES \
+          CODE_SIGN_IDENTITY="iPhone Developer" \
+          -allowProvisioningUpdates
+
+      - name: Verify Archive Exists
+        run: |
+          if [ ! -d ios/build/CICD_CLI_Demo.xcarchive ]; then
+            echo "Archive not found!"
+            exit 1
+          fi
 
       - name: Check exportOptions.plist
         run: |
