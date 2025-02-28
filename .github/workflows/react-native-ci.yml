@@ -112,7 +112,7 @@ jobs:
       - name: Build iOS Archive
         run: |
           xcodebuild -workspace ios/CICD_CLI_Demo.xcworkspace \
-          -scheme MyApp \
+          -scheme CICD_CLI_Demo \
           -sdk iphoneos \
           -configuration Release \
           -archivePath ios/build/CICD_CLI_Demo.xcarchive \
@@ -134,13 +134,13 @@ jobs:
       
       - name: Verify .ipa Exists
         run: |
-          if [ ! -f ios/build/MyApp.ipa ]; then
+          if [ ! -f ios/build/CICD_CLI_Demo.ipa ]; then
             echo "iOS IPA file is missing!"
             exit 1
           fi
-          
+
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: ios/build/MyApp.ipa
+          path: ios/build/CICD_CLI_Demo.ipa
