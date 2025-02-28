@@ -40,6 +40,13 @@ jobs:
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Cache Gradle
+        uses: actions/cache@v3
+        with:
+          path: ~/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-  
+
       - name: Grant execute permission to Gradle
         run: chmod +x android/gradlew
 
@@ -56,9 +63,9 @@ jobs:
 
   
   build-ios:
-    runs-on: macos-latest
+  runs-on: macos-latest
 
-    steps:
+  steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
@@ -89,19 +96,37 @@ jobs:
         cd ios
         pod install || exit 1
 
+    - name: Cache Pods
+      uses: actions/cache@v3
+      with:
+        path: ios/Pods
+        key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
+        restore-keys: pods-${{ runner.os }}-
+
     - name: Verify xcworkspace exists
       run: ls -la ios/
 
-    - name: Build iOS App
+    - name: Verify exportOptions.plist exists
+      run: ls -la ios/exportOptions.plist
+
+    - name: Build iOS Archive
       run: |
         xcodebuild -workspace ios/MyApp.xcworkspace \
         -scheme MyApp \
         -sdk iphoneos \
         -configuration Release \
-        -derivedDataPath ios/build || exit 1
+        -archivePath ios/build/MyApp.xcarchive \
+        archive
 
-    - name: Upload iOS Artifact
+    - name: Export .ipa
+      run: |
+        xcodebuild -exportArchive \
+        -archivePath ios/build/MyApp.xcarchive \
+        -exportOptionsPlist ios/exportOptions.plist \
+        -exportPath ios/build
+
+    - name: Upload iOS IPA Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ios-build
-        path: ios/build/Build/Products/Release-iphoneos/*.app
+        name: ios-ipa
+        path: ios/build/MyApp.ipa
