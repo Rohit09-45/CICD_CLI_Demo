@@ -19,6 +19,14 @@ jobs:
           node-version: 18
           cache: 'npm'
 
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: npm install  
 
@@ -49,39 +57,51 @@ jobs:
   
   build-ios:
     runs-on: macos-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'npm'
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+        cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install  
-      
-      - name: Setup Ruby for CocoaPods
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.0
-          
-      - name: Install CocoaPods
-        run: |
-          cd ios
-          pod install
+    - name: Cache npm dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
 
-      - name: Build iOS App
-        run: |
-          xcodebuild -workspace ios/MyApp.xcworkspace \
-          -scheme MyApp \
-          -sdk iphoneos \
-          -configuration Release \
-          -derivedDataPath ios/build
+    - name: Install dependencies
+      run: npm install  
 
-      - name: Upload iOS Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build
-          path: ios/build/Build/Products/Release-iphoneos/*.app
+    - name: Setup Ruby for CocoaPods
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.0
+
+    - name: Install CocoaPods
+      run: |
+        cd ios
+        pod install || exit 1
+
+    - name: Verify xcworkspace exists
+      run: ls -la ios/
+
+    - name: Build iOS App
+      run: |
+        xcodebuild -workspace ios/MyApp.xcworkspace \
+        -scheme MyApp \
+        -sdk iphoneos \
+        -configuration Release \
+        -derivedDataPath ios/build || exit 1
+
+    - name: Upload iOS Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-build
+        path: ios/build/Build/Products/Release-iphoneos/*.app
