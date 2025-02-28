@@ -118,6 +118,7 @@ jobs:
           -archivePath ios/build/CICD_CLI_Demo.xcarchive \
           archive CODE_SIGNING_ALLOWED=YES \
           CODE_SIGN_IDENTITY="iPhone Developer" \
+          DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
           -allowProvisioningUpdates
 
       - name: Verify Archive Exists
