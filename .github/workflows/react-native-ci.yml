@@ -63,44 +63,60 @@ jobs:
 
   
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-latest  # Uses latest macOS runner with Xcode
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
+      - name: Setup Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
 
       - name: Install Dependencies
         run: |
-          npm install
-          cd ios && pod install && cd ..
+          brew install cocoapods
+          pod install --project-directory=ios
 
-      - name: Authenticate with Apple
+      - name: Set Up Code Signing
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          CERT_PASSWORD: ${{ secrets.APPLE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
-          bundle exec fastlane run update_fastlane
-          bundle exec fastlane sigh resign
+          # Decode and Import Apple Certificate
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k ~/Library/Keychains/login.keychain-db -P "$CERT_PASSWORD" -T /usr/bin/codesign
 
-      - name: Set Up Xcode Managed Profile
-        run: |
-          xcodebuild clean build \
-            -workspace ios/CICD_CLI_Demo.xcworkspace \
-            -scheme CICD_CLI_Demo \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates
+          # Decode and Install Provisioning Profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+          # Set Keychain Access
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERT_PASSWORD" ~/Library/Keychains/login.keychain-db
 
       - name: Build iOS App
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcodebuild archive \
-            -workspace ios/CICD_CLI_Demo.xcworkspace \
+          xcodebuild clean build \
+            -workspace CICD_CLI_Demo.xcworkspace \
             -scheme CICD_CLI_Demo \
-            -archivePath $PWD/build/CICD_CLI_Demo.xcarchive \
-            CODE_SIGN_IDENTITY="Apple Development" \
-            -allowProvisioningUpdates
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath CICD_CLI_Demo.xcarchive \
+            DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="profile.mobileprovision"
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath CICD_CLI_Demo.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath output
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-Build
+          path: output/*.ipa
