@@ -79,12 +79,26 @@ jobs:
           npm install
           cd ios && pod install && cd ..
 
-      - name: Decode Apple Certificate
-        run: echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > debug_cert.p12
+      - name: Authenticate with Apple
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+        run: |
+          fastlane run update_fastlane
+          fastlane sigh resign --team_id $APPLE_TEAM_ID
+
+      - name: Set Up Xcode Managed Profile
+        run: |
+          xcodebuild clean build \
+            -workspace ios/CICD_CLI_Demo.xcworkspace \
+            -scheme CICD_CLI_Demo \
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates
 
       - name: Build iOS App
         run: |
-          xcodebuild clean archive \
+          xcodebuild archive \
             -workspace ios/CICD_CLI_Demo.xcworkspace \
             -scheme CICD_CLI_Demo \
             -archivePath $PWD/build/CICD_CLI_Demo.xcarchive \
