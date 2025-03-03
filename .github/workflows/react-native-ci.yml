@@ -106,16 +106,16 @@ jobs:
       # Step 8: Decode and install the signing certificate
       - name: Decode and install certificate
         run: |
-          echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > certificate.p12
-          security import certificate.p12 -P "${{ secrets.APPLE_KEY_PASSWORD }}" -T /usr/bin/codesign
+          echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > Certificates.p12
+          security import Certificates.p12 -P "${{ secrets.APPLE_KEY_PASSWORD }}" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.APPLE_KEY_PASSWORD }}" ~/Library/Keychains/login.keychain-db
 
       # Step 9: Decode and install the provisioning profile
       - name: Decode and install provisioning profile
         run: |
-          echo "${{ secrets.APPLE_PROVISIONING_PROFILE }}" | base64 --decode > provisioning_profile.mobileprovision
+          echo "${{ secrets.APPLE_PROVISIONING_PROFILE }}" | base64 --decode > zluckV1.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          mv provisioning_profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+          mv zluckV1.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
 
       # Step 10: Build the iOS archive (.xcarchive)
       - name: Build iOS Archive
