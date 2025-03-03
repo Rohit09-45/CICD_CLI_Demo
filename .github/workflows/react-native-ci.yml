@@ -103,12 +103,21 @@ jobs:
           key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
           restore-keys: pods-${{ runner.os }}-
 
-      - name: Verify xcworkspace exists
-        run: ls -la ios/
+      # Step 8: Decode and install the signing certificate
+      - name: Decode and install certificate
+        run: |
+          echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > certificate.p12
+          security import certificate.p12 -P "${{ secrets.APPLE_KEY_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.APPLE_KEY_PASSWORD }}" ~/Library/Keychains/login.keychain-db
 
-      - name: Verify exportOptions.plist exists
-        run: ls -la ios/exportOptions.plist
-      
+      # Step 9: Decode and install the provisioning profile
+      - name: Decode and install provisioning profile
+        run: |
+          echo "${{ secrets.APPLE_PROVISIONING_PROFILE }}" | base64 --decode > provisioning_profile.mobileprovision
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          mv provisioning_profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      # Step 10: Build the iOS archive (.xcarchive)
       - name: Build iOS Archive
         run: |
           xcodebuild -workspace ios/CICD_CLI_Demo.xcworkspace \
@@ -117,31 +126,19 @@ jobs:
           -configuration Release \
           -archivePath ios/build/CICD_CLI_Demo.xcarchive \
           archive CODE_SIGNING_ALLOWED=YES \
-          CODE_SIGN_IDENTITY="iPhone Developer" \
+          CODE_SIGN_IDENTITY="Apple Development" \
           DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
           -allowProvisioningUpdates
 
-      - name: Verify Archive Exists
-        run: |
-          if [ ! -d ios/build/CICD_CLI_Demo.xcarchive ]; then
-            echo "Archive not found!"
-            exit 1
-          fi
-
-      - name: Check exportOptions.plist
-        run: |
-          if [ ! -f ios/exportOptions.plist ]; then
-            echo "exportOptions.plist not found!"
-            exit 1
-          fi
-
+      # Step 11: Export the .ipa file
       - name: Export .ipa
         run: |
           xcodebuild -exportArchive \
           -archivePath ios/build/CICD_CLI_Demo.xcarchive \
           -exportOptionsPlist ios/exportOptions.plist \
-          -exportPath ios/build    
-      
+          -exportPath ios/build
+
+      # Step 12: Verify the .ipa file exists
       - name: Verify .ipa Exists
         run: |
           if [ ! -f ios/build/CICD_CLI_Demo.ipa ]; then
@@ -149,6 +146,7 @@ jobs:
             exit 1
           fi
 
+      # Step 13: Upload the .ipa file as an artifact
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
