@@ -64,92 +64,29 @@ jobs:
   
   build-ios:
     runs-on: macos-latest
-
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: 'npm'
 
-      - name: Cache npm dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install dependencies
-        run: npm install  
-
-      - name: Setup Ruby for CocoaPods
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.0
-
-      - name: Install CocoaPods
+      - name: Install Dependencies
         run: |
-          cd ios
-          pod install || exit 1
+          npm install
+          cd ios && pod install && cd ..
 
-      - name: Cache Pods
-        uses: actions/cache@v3
-        with:
-          path: ios/Pods
-          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: pods-${{ runner.os }}-
+      - name: Decode Apple Certificate
+        run: echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > debug_cert.p12
 
-      # Step 8: Decode and install the signing certificate
-      - name: Decode and install certificate
+      - name: Build iOS App
         run: |
-          cp ~/Documents/Certificates.p12 .
-          security import Certificates.p12 -P "${{ secrets.APPLE_KEY_PASSWORD }}" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.APPLE_KEY_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-
-
-      # Step 9: Decode and install the provisioning profile
-      - name: Decode and install provisioning profile
-        run: |
-          cp ~/Documents/zluckV1.mobileprovision .
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          mv zluckV1.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-          
-      # Step 10: Build the iOS archive (.xcarchive)
-      - name: Build iOS Archive
-        run: |
-          xcodebuild -workspace ios/CICD_CLI_Demo.xcworkspace \
-          -scheme CICD_CLI_Demo \
-          -sdk iphoneos \
-          -configuration Release \
-          -archivePath ios/build/CICD_CLI_Demo.xcarchive \
-          archive CODE_SIGNING_ALLOWED=YES \
-          CODE_SIGN_IDENTITY="Apple Development" \
-          DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
-          -allowProvisioningUpdates
-
-      # Step 11: Export the .ipa file
-      - name: Export .ipa
-        run: |
-          xcodebuild -exportArchive \
-          -archivePath ios/build/CICD_CLI_Demo.xcarchive \
-          -exportOptionsPlist ios/exportOptions.plist \
-          -exportPath ios/build
-
-      # Step 12: Verify the .ipa file exists
-      - name: Verify .ipa Exists
-        run: |
-          if [ ! -f ios/build/CICD_CLI_Demo.ipa ]; then
-            echo "iOS IPA file is missing!"
-            exit 1
-          fi
-
-      # Step 13: Upload the .ipa file as an artifact
-      - name: Upload iOS IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: ios/build/CICD_CLI_Demo.ipa
+          xcodebuild clean archive \
+            -workspace ios/CICD_CLI_Demo.xcworkspace \
+            -scheme CICD_CLI_Demo \
+            -archivePath $PWD/build/CICD_CLI_Demo.xcarchive \
+            CODE_SIGN_IDENTITY="Apple Development" \
+            -allowProvisioningUpdates
